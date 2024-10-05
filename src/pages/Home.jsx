@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
-import Header from '../components/Header'
-import { Box, Button, Modal, styled, TextField, Typography } from '@mui/material'
-import ListProduct from '../components/ListProduct'
+import React, { useEffect, useState } from 'react';
+import Header from '../components/Header';
+import { Box, Button, Modal, styled, TextField, Typography } from '@mui/material';
+import ListProduct from '../components/ListProduct';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import axios from 'axios';
 
 const style = {
     position: 'absolute',
@@ -14,7 +15,7 @@ const style = {
     border: '2px solid #000',
     boxShadow: 24,
     p: 4,
-  };
+};
 
 const VisuallyHiddenInput = styled('input')({
     clip: 'rect(0 0 0 0)',
@@ -26,82 +27,230 @@ const VisuallyHiddenInput = styled('input')({
     left: 0,
     whiteSpace: 'nowrap',
     width: 1,
-  });
-  
-  
+});
+
 export default function Home() {
-    const [open, setOpen] = React.useState(false);
-    const handleOpen = () => setOpen(true);
-    const handleClose = () => setOpen(false);
+    const [open, setOpen] = useState(false);
     const [action, setAction] = useState();
+    const [productName, setProductName] = useState('');
+    const [description, setDescription] = useState('');
+    const [price, setPrice] = useState('');
+    const [image, setImage] = useState(null);
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [currentProductId, setCurrentProductId] = useState(null);
 
-    const handleAddProduct =() =>{
+    const handleOpen = () => setOpen(true);
+    const handleClose = () => {
+        setOpen(false);
+        resetForm();
+    };
 
-    }
-  return (
-    <Box>
-        <Header></Header>
-        <Box sx={{
-            padding: 5
-        }}>
-            <Box sx={{
-                display:'flex',
-                justifyContent: 'space-between'
-            }}>
-                <Typography variant="h4">
-                    List product
-                </Typography>
-                <Button variant="contained" onClick={()=>{setAction('add'); handleOpen()}}>
-                    Add new product
-                </Button>
+    const resetForm = () => {
+        setProductName('');
+        setDescription('');
+        setPrice('');
+        setImage(null);
+        setSelectedImage(null);
+        setCurrentProductId(null);
+    };
+
+    const handleAddProduct = async () => {
+        if (!productName || !description || !price || !image) {
+            alert('Please fill all fields and upload an image');
+            return;
+        }
+        const token = localStorage.getItem('access_token');
+
+        const formData = new FormData();
+        formData.append('name', productName);
+        formData.append('description', description);
+        formData.append('price', price);
+        formData.append('image', image);
+
+        try {
+            const response = await axios.post('http://localhost:3001/products', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            getProducts();
+            alert('Product added successfully');
+            handleClose();
+        } catch (error) {
+            console.error('Error adding product:', error);
+            alert('Failed to add product');
+        }
+    };
+
+    const handleEditOpen = (product) => {
+        setAction('edit');
+        setCurrentProductId(product._id); 
+        setProductName(product.name);
+        setDescription(product.description);
+        setPrice(product.price);
+        setImage(product.imageUrl);
+        setSelectedImage(product.imageUrl);
+        handleOpen();
+    };
+
+    const handleFileChange = (event) => {
+        setImage(event.target.files[0]);
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSelectedImage(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const [products, setProducts] = useState([]);
+
+    const getProducts = async () => {
+        try {
+            const response = await axios.get('http://localhost:3001/products');
+            setProducts(response.data);
+            console.log(response.data)
+        } catch (error) {
+            console.error('Error fetching products:', error);
+        }
+    };
+
+    useEffect(() => {
+        getProducts();
+    }, []);
+
+    const handleEdit = async () => {
+
+        if (!productName || !description || !price || !image) {
+          alert('Please fill all fields and upload an image');
+          return;
+        }
+        const token = localStorage.getItem('access_token');
+        const formData = new FormData();
+        formData.append('name', productName);
+        formData.append('description', description);
+        formData.append('price', price);
+        formData.append('image', image);
+    
+        try {
+          const response = await axios.put(`http://localhost:3001/products/${currentProductId}`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          handleClose()
+          getProducts();
+          alert('Product updated successfully');
+        } catch (error) {
+          console.error('Error updating product:', error);
+          alert('Failed to update product');
+        }
+      };
+
+
+      const handleDelete = async (id) => {
+        if (window.confirm('Are you sure you want to delete this product?')) {
+
+            const token = localStorage.getItem('access_token');
+          try {
+            await axios.delete(`http://localhost:3001/products/${id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+            });
+            getProducts();
+            alert('Product deleted successfully');
+          } catch (error) {
+            console.error('Error deleting product:', error);
+            alert('Failed to delete product');
+          }
+        }
+      };
+    return (
+        <Box>
+            <Header></Header>
+            <Box sx={{ padding: 5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="h4">List product</Typography>
+                    <Button variant="contained" onClick={() => { setAction('add'); handleOpen(); }}>
+                        Add new product
+                    </Button>
+                </Box>
+                <Box sx={{ marginTop: 4 }}>
+                    <ListProduct products={products} handleEditOpen={handleEditOpen} handleDelete={handleDelete}></ListProduct>
+                </Box>
             </Box>
-            <Box sx={{
-                marginTop: 4
-            }}>
-                <ListProduct setAction={setAction}></ListProduct>
-            </Box>
+            <Modal
+                open={open}
+                onClose={handleClose}
+                aria-labelledby="modal-modal-title"
+                aria-describedby="modal-modal-description"
+            >
+                <Box sx={style}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', marginBottom: 2 }}>
+                        <Typography variant='h5'>{action === 'edit' ? 'Edit product' : 'Add product'}</Typography>
+                    </Box>
+                    <TextField
+                        sx={{ display: 'block', marginBottom: 2, marginTop: 4 }}
+                        fullWidth
+                        id="outlined-basic"
+                        label="Product name"
+                        variant="outlined"
+                        value={productName}
+                        onChange={(e) => setProductName(e.target.value)}
+                    />
+                    <TextField
+                        sx={{ display: 'block', marginBottom: 2, marginTop: 4 }}
+                        fullWidth
+                        id="outlined-basic"
+                        label="Description"
+                        variant="outlined"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                    />
+                    <TextField
+                        sx={{ display: 'block', marginBottom: 2, marginTop: 4 }}
+                        fullWidth
+                        id="outlined-basic"
+                        label="Price"
+                        variant="outlined"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                    />
+                    <Button
+                        component="label"
+                        role={undefined}
+                        tabIndex={-1}
+                        startIcon={<CloudUploadIcon />}
+                    >
+                        Upload image
+                        <VisuallyHiddenInput
+                            type="file"
+                            onChange={handleFileChange}
+                            multiple
+                        />
+                    </Button>
+
+                    {selectedImage && ( // Hiển thị ảnh nếu có ảnh được chọn hoặc ảnh hiện tại
+                        <Box sx={{ marginTop: 2 }}>
+                            <img
+                                src={selectedImage}
+                                alt="Selected"
+                                style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }} // Style để ảnh hiển thị đẹp
+                            />
+                        </Box>
+                    )}
+                    <Box sx={{ display: 'flex', justifyContent: 'center', marginTop: 3 }}>
+                        <Button variant="contained" onClick={action === 'edit' ? handleEdit : handleAddProduct}>
+                            {action === 'edit' ? 'Update product' : 'Add product'}
+                        </Button>
+                    </Box>
+                </Box>
+            </Modal>
         </Box>
-        <Modal
-        open={open}
-        onClose={handleClose}
-        aria-labelledby="modal-modal-title"
-        aria-describedby="modal-modal-description"
-      >
-        <Box sx={style}>
-            <Box sx={{
-                display: 'flex', 
-                justifyContent:'center',
-                marginBottom: 2
-            }}>
-                <Typography variant='h5'>Add product</Typography>
-            </Box>
-            
-            <TextField sx={{display:'block', marginBottom: 2, marginTop: 4}} fullWidth  id="outlined-basic" label="Product name" variant="outlined" />
-            <TextField sx={{display:'block', marginBottom: 2, marginTop: 4}} fullWidth  id="outlined-basic" label="Description" variant="outlined" />
-            <TextField sx={{display:'block', marginBottom: 2, marginTop: 4}} fullWidth  id="outlined-basic" label="Price" variant="outlined" />
-            <Button
-                component="label"
-                role={undefined}
-                // variant="contained"
-                tabIndex={-1}
-                startIcon={<CloudUploadIcon />}
-                >
-                Upload image
-                <VisuallyHiddenInput
-                    type="file"
-                    onChange={(event) => console.log(event.target.files)}
-                    multiple
-                />
-                </Button>
-            <Box sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                marginTop: 3
-            }}>
-                <Button variant="contained" onClick={handleAddProduct}>Add product</Button>
-            </Box>
-        </Box>
-      </Modal>
-    </Box>
-  )
+    )
 }
