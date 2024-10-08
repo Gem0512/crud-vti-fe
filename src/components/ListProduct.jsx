@@ -4,7 +4,7 @@ import Paper from '@mui/material/Paper';
 import { Box, Button } from '@mui/material';
 
 const columns = (handleEditOpen, handleDeleteProduct) => [
-  { field: '_id', headerName: 'ID', width: 250 },
+  { field: 'id', headerName: 'ID', width: 250 },
   { field: 'name', headerName: 'Name product', width: 200 },
   { field: 'description', headerName: 'Description', width: 400 },
   {
@@ -29,7 +29,7 @@ const columns = (handleEditOpen, handleDeleteProduct) => [
         </Button>
         <Button
           color="error"
-          onClick={() => handleDeleteProduct(params.row._id)} // Gọi hàm handleDeleteProduct
+          onClick={() => handleDeleteProduct(params.row.id)} // Gọi hàm handleDeleteProduct
         >
           Delete
         </Button>
@@ -48,7 +48,7 @@ export default function ListProduct({ products, handleEditOpen, handleDelete }) 
         columns={columns(handleEditOpen, handleDelete)} 
         initialState={{ pagination: { paginationModel } }}
         pageSizeOptions={[5, 10]}     
-        getRowId={(row) => row._id} 
+        getRowId={(row) => row.id} 
         sx={{ border: 0 }}
       />
     </Paper>

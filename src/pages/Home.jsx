@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
-import { Box, Button, Modal, styled, TextField, Typography } from '@mui/material';
+import { Box, Button, Card, CardActions, CardContent, CardMedia, Modal, styled, TextField, Typography } from '@mui/material';
 import ListProduct from '../components/ListProduct';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const style = {
     position: 'absolute',
@@ -85,7 +86,7 @@ export default function Home() {
 
     const handleEditOpen = (product) => {
         setAction('edit');
-        setCurrentProductId(product._id); 
+        setCurrentProductId(product.id); 
         setProductName(product.name);
         setDescription(product.description);
         setPrice(product.price);
@@ -107,12 +108,17 @@ export default function Home() {
     };
 
     const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
 
     const getProducts = async () => {
         try {
-            const response = await axios.get('http://localhost:3001/products');
+            const response = await axios.get(`http://localhost:3001/products`);
             setProducts(response.data);
             console.log(response.data)
+            setHasMore(response.data.hasMore);
+            setLoading(false);
         } catch (error) {
             console.error('Error fetching products:', error);
         }
@@ -121,6 +127,20 @@ export default function Home() {
     useEffect(() => {
         getProducts();
     }, []);
+
+
+    const handleScroll = () => {
+        if (window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - 500 && !loading && hasMore) {
+            setPage((prevPage) => prevPage + 1); 
+        }
+    };
+
+    useEffect(() => {
+        window.addEventListener('scroll', handleScroll);
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, [loading, hasMore]);
 
     const handleEdit = async () => {
 
@@ -170,6 +190,16 @@ export default function Home() {
           }
         }
       };
+
+      const navigate = useNavigate();
+
+        useEffect(() => {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                navigate('/login');
+            }
+        }, [navigate]);
+
     return (
         <Box>
             <Header></Header>
@@ -181,7 +211,33 @@ export default function Home() {
                     </Button>
                 </Box>
                 <Box sx={{ marginTop: 4 }}>
-                    <ListProduct products={products} handleEditOpen={handleEditOpen} handleDelete={handleDelete}></ListProduct>
+                    {/* <ListProduct products={products} handleEditOpen={handleEditOpen} handleDelete={handleDelete}></ListProduct> */}
+                    {
+                        products && products.map((product) => {
+                            return (
+                                <Card sx={{ maxWidth: 345, margin: 2 }} key={product.id}>
+                                    <CardMedia
+                                        sx={{ height: 140 }}
+                                        image={product.imageUrl}
+                                        title={product.name} // Cập nhật title cho hình ảnh
+                                    />
+                                    <CardContent>
+                                        <Typography gutterBottom variant="h5" component="div">
+                                            {product.name}
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                            {product.description}
+                                        </Typography>
+                                    </CardContent>
+                                    <CardActions>
+                                        <Button size="small"  onClick={()=>{handleEditOpen(product)}}>Edit</Button>
+                                        <Button size="small"onClick={()=>{handleDelete(product.id)}}>Delete</Button>
+                                    </CardActions>
+                                </Card>
+                            );
+                        })
+                    }
+
                 </Box>
             </Box>
             <Modal
